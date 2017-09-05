@@ -28,8 +28,9 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources),
-	m_IsWireframe(true),	// wireframe
-	m_tessFactor(4)			// default tess factor
+	m_IsWireframe(true),		// wireframe
+	m_tessFactorEdge(4),		// default tess factor - edge
+	m_tessFactorInside(4)		// default tess factor - inside
 {
 	LoadState();
 	ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
@@ -475,7 +476,7 @@ bool Sample3DSceneRenderer::Render()
 		m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + m_deviceResources->GetCurrentFrameIndex() * c_alignedConstantBufferSize);
 
 		// set tesselator
-		int rootConstants[]{ m_tessFactor, m_tessFactor };
+		int rootConstants[]{ m_tessFactorEdge, m_tessFactorInside };
 		m_commandList->SetGraphicsRoot32BitConstants(1, _countof(rootConstants), rootConstants, 0);
 
 		ID3D12DescriptorHeap* ppTransHeaps[] = { m_TransformsAndColorsDescHeap.Get() };
@@ -515,13 +516,14 @@ bool Sample3DSceneRenderer::Render()
 		// 1. Show a simple window
 		// Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
 		{
-			ImGui::SetNextWindowSize(ImVec2(400, 150), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(450, 150), ImGuiSetCond_FirstUseEver);
 			ImGui::Begin("London control");
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
 			ImGui::Text("%Mouse=( %.3f , %.3f )", m_PointerPosition.X, m_PointerPosition.X);
 			ImGui::Checkbox("Wireframe", &m_IsWireframe);
-			ImGui::InputInt("Tess Factor", &m_tessFactor, 1);
+			ImGui::InputInt("Tess Factor Edge", &m_tessFactorEdge, 1);
+			ImGui::InputInt("Tess Factor Inside", &m_tessFactorInside, 1);
 			ImGui::End();
 
 			//ImVec4 clear_col = ImColor(114, 144, 154);

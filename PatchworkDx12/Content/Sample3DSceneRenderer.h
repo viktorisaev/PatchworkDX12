@@ -70,7 +70,8 @@ namespace PatchworkDx12
 		bool	m_tracking;
 
 		bool m_IsWireframe;	// true=wireframe piplene state, false=solid pipline state
-		int m_tessFactor;	// tesselation factor
+		int m_tessFactorEdge;	// tesselation factor - edge
+		int m_tessFactorInside;	// tesselation factor - inside
 
 
 		DirectX::XMMATRIX m_viewproj;
