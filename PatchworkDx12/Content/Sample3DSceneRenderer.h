@@ -25,7 +25,7 @@ namespace PatchworkDx12
 
 	private:
 		void LoadState();
-		void Rotate(float radians);
+		void Rotate(float _Pitch, float _Roll);
 
 	private:
 		// Constant buffers must be 256-byte aligned.
@@ -53,8 +53,7 @@ namespace PatchworkDx12
 
 		// Variables used with the rendering loop.
 		bool	m_loadingComplete;
-		float	m_radiansPerSecond;
-		float	m_angle;
+		float	m_radiansPerMouse;
 		bool	m_tracking;
 
 		// imgui

@@ -18,14 +18,14 @@ using namespace Windows::Foundation;
 using namespace Windows::Storage;
 
 // Indices into the application state map.
-Platform::String^ AngleKey = "Angle";
+//Platform::String^ RollKey = "Roll";
+//Platform::String^ PitchKey = "Pitch";
 Platform::String^ TrackingKey = "Tracking";
 
 // Loads vertex and pixel shaders from files and instantiates the cube geometry.
 Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceResources>& deviceResources) :
 	m_loadingComplete(false),
-	m_radiansPerSecond(XM_PIDIV4),	// rotate 45 degrees per second
-	m_angle(0),
+	m_radiansPerMouse(XM_PI),	// rotation sensivity depends on mouse movements
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources)
@@ -287,7 +287,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 {
 	Size outputSize = m_deviceResources->GetOutputSize();
 	float aspectRatio = outputSize.Width / outputSize.Height;
-	float fovAngleY = 70.0f * XM_PI / 180.0f;
+	float fovAngleY = 45.0f * XM_PI / 180.0f;
 
 	D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
 	m_scissorRect = { 0, 0, static_cast<LONG>(viewport.Width), static_cast<LONG>(viewport.Height)};
@@ -306,24 +306,16 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	// this transform should not be applied.
 
 	// This sample makes use of a right-handed coordinate system using row-major matrices.
-	XMMATRIX perspectiveMatrix = XMMatrixPerspectiveFovRH(
-		fovAngleY,
-		aspectRatio,
-		0.01f,
-		100.0f
-		);
+	XMMATRIX perspectiveMatrix = XMMatrixPerspectiveFovRH( fovAngleY , aspectRatio , 1.0f , 100.0f	);
 
 	XMFLOAT4X4 orientation = m_deviceResources->GetOrientationTransform3D();
 	XMMATRIX orientationMatrix = XMLoadFloat4x4(&orientation);
 
-	XMStoreFloat4x4(
-		&m_constantBufferData.projection,
-		XMMatrixTranspose(perspectiveMatrix * orientationMatrix)
-		);
+	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
-	static const XMVECTORF32 eye = { 0.0f, 0.7f, 1.5f, 0.0f };
-	static const XMVECTORF32 at = { 0.0f, -0.1f, 0.0f, 0.0f };
+	static const XMVECTORF32 eye = { 0.0f, 0.0f, -10.0f, 0.0f };
+	static const XMVECTORF32 at = { 0.0f, 0.0f, 0.0f, 0.0f };
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
 
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
@@ -334,37 +326,53 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer, Point _PointerPos
 {
 	if (m_loadingComplete)
 	{
+		m_PointerPosition = _PointerPosition;
+
 		if (!m_tracking)
 		{
-			// Rotate the cube a small amount.
-			m_angle += static_cast<float>(timer.GetElapsedSeconds()) * m_radiansPerSecond;
 
-			Rotate(m_angle);
+			float pitch = _PointerPosition.X * m_radiansPerMouse;
+			float roll = _PointerPosition.Y * m_radiansPerMouse;
+
+			Rotate(pitch, roll);
 		}
 
 		// Update the constant buffer resource.
 		UINT8* destination = m_mappedConstantBuffer + (m_deviceResources->GetCurrentFrameIndex() * c_alignedConstantBufferSize);
 		memcpy(destination, &m_constantBufferData, sizeof(m_constantBufferData));
-
-		m_PointerPosition = _PointerPosition;
 	}
 }
+
+
+// Rotate the 3D cube model a set amount of radians.
+void Sample3DSceneRenderer::Rotate(float _Pitch, float _Roll)
+{
+
+	XMMATRIX modelMatrixRotationDX = XMMatrixRotationRollPitchYaw(_Roll, _Pitch, 0.0f);
+	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
+	XMMATRIX modelMatrixDX = modelMatrixRotationDX * modelMatrixTranslationDX;
+
+	// store model matrix for current object rotation
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(modelMatrixDX));
+}
+
+
 
 // Saves the current state of the renderer.
 void Sample3DSceneRenderer::SaveState()
 {
 	auto state = ApplicationData::Current->LocalSettings->Values;
 
-	if (state->HasKey(AngleKey))
-	{
-		state->Remove(AngleKey);
-	}
+	//if (state->HasKey(RollKey))
+	//{
+	//	state->Remove(RollKey);
+	//}
 	if (state->HasKey(TrackingKey))
 	{
 		state->Remove(TrackingKey);
 	}
 
-	state->Insert(AngleKey, PropertyValue::CreateSingle(m_angle));
+//	state->Insert(AngleKey, PropertyValue::CreateSingle(m_angle));
 	state->Insert(TrackingKey, PropertyValue::CreateBoolean(m_tracking));
 }
 
@@ -372,23 +380,16 @@ void Sample3DSceneRenderer::SaveState()
 void Sample3DSceneRenderer::LoadState()
 {
 	auto state = ApplicationData::Current->LocalSettings->Values;
-	if (state->HasKey(AngleKey))
-	{
-		m_angle = safe_cast<IPropertyValue^>(state->Lookup(AngleKey))->GetSingle();
-		state->Remove(AngleKey);
-	}
+	//if (state->HasKey(AngleKey))
+	//{
+	//	m_angle = safe_cast<IPropertyValue^>(state->Lookup(AngleKey))->GetSingle();
+	//	state->Remove(AngleKey);
+	//}
 	if (state->HasKey(TrackingKey))
 	{
 		m_tracking = safe_cast<IPropertyValue^>(state->Lookup(TrackingKey))->GetBoolean();
 		state->Remove(TrackingKey);
 	}
-}
-
-// Rotate the 3D cube model a set amount of radians.
-void Sample3DSceneRenderer::Rotate(float radians)
-{
-	// Prepare to pass the updated model matrix to the shader.
-	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
 }
 
 void Sample3DSceneRenderer::StartTracking()
@@ -401,8 +402,8 @@ void Sample3DSceneRenderer::TrackingUpdate(float positionX)
 {
 	if (m_tracking)
 	{
-		float radians = XM_2PI * 2.0f * positionX / m_deviceResources->GetOutputSize().Width;
-		Rotate(radians);
+		//float radians = XM_2PI * 2.0f * positionX / m_deviceResources->GetOutputSize().Width;
+		//Rotate(radians);
 	}
 }
 
