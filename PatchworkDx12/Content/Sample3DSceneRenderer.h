@@ -56,6 +56,9 @@ namespace PatchworkDx12
 		float	m_radiansPerSecond;
 		float	m_angle;
 		bool	m_tracking;
+
+		// imgui
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        g_pd3dSrvDescHeap;
 	};
 }
 
