@@ -80,17 +80,24 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	}
 
 	// Load shaders asynchronously.
-	auto createVSTask = DX::ReadDataAsync(L"SampleVertexShader.cso").then([this](std::vector<byte>& fileData) {
+	auto createVSTask = DX::ReadDataAsync(L"VertexShader.cso").then([this](std::vector<byte>& fileData) {
 		m_vertexShader = fileData;
 	});
 
-	auto createPSTask = DX::ReadDataAsync(L"SamplePixelShader.cso").then([this](std::vector<byte>& fileData) {
+	auto createHSTask = DX::ReadDataAsync(L"HullShader.cso").then([this](std::vector<byte>& fileData) {
+		m_hullShader = fileData;
+	});
+
+	auto createDSTask = DX::ReadDataAsync(L"DomainShader.cso").then([this](std::vector<byte>& fileData) {
+		m_domainShader = fileData;
+	});
+
+	auto createPSTask = DX::ReadDataAsync(L"PixelShader.cso").then([this](std::vector<byte>& fileData) {
 		m_pixelShader = fileData;
 	});
 
-
 	// Create the pipeline state once the shaders are loaded.
-	auto createPipelineStateTask = (createPSTask && createVSTask).then([this]() {
+	auto createPipelineStateTask = (createPSTask && createHSTask && createDSTask && createVSTask).then([this]() {
 
 		m_pipelineStateWireframe = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(),
 			m_rootSignature, CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size()), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size()));
@@ -497,7 +504,6 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 	std::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDescs
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	D3D12_RASTERIZER_DESC rasterizerDesc;
