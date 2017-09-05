@@ -355,15 +355,13 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer, Point _PointerPos
 {
 	if (m_loadingComplete)
 	{
-		m_PointerPosition = _PointerPosition;
-
 		if (!m_tracking)
 		{
 
-			float pitch = _PointerPosition.X * m_radiansPerMouse;
-			float roll = _PointerPosition.Y * m_radiansPerMouse;
+			m_Pitch = _PointerPosition.X * m_radiansPerMouse;
+			m_Roll = _PointerPosition.Y * m_radiansPerMouse;
 
-			Rotate(pitch, roll);
+			Rotate(m_Pitch, m_Roll);
 		}
 
 		// Update the constant buffer resource.
@@ -514,10 +512,10 @@ bool Sample3DSceneRenderer::Render()
 			ImGui::Begin("London control");
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
-			ImGui::Text("%Mouse=( %.3f , %.3f )", m_PointerPosition.X, m_PointerPosition.X);
+			ImGui::Text("Pitch, Roll=( %.3f , %.3f )", m_Pitch, m_Roll);
 			ImGui::Checkbox("Wireframe", &m_IsWireframe);
-			ImGui::InputInt("Tess Factor Edge", &m_tessFactorEdge, 1);
-			ImGui::InputInt("Tess Factor Inside", &m_tessFactorInside, 1);
+			ImGui::SliderInt("Tess Factor Edge", &m_tessFactorEdge, 1, 20);
+			ImGui::SliderInt("Tess Factor Inside", &m_tessFactorInside, 1, 20);
 			ImGui::End();
 
 			//ImVec4 clear_col = ImColor(114, 144, 154);

@@ -73,14 +73,14 @@ namespace PatchworkDx12
 		int m_tessFactorEdge;	// tesselation factor - edge
 		int m_tessFactorInside;	// tesselation factor - inside
 
+		float m_Pitch;
+		float m_Roll;
+
 
 		DirectX::XMMATRIX m_viewproj;
 
 		// imgui
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        g_pd3dSrvDescHeap;
-
-		// remove it!!!
-		Windows::Foundation::Point m_PointerPosition;
 	};
 
 
