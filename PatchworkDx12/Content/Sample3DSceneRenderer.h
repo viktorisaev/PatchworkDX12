@@ -14,7 +14,7 @@ namespace PatchworkDx12
 		~Sample3DSceneRenderer();
 		void CreateDeviceDependentResources();
 		void CreateWindowSizeDependentResources();
-		void Update(DX::StepTimer const& timer);
+		void Update(DX::StepTimer const& timer, Windows::Foundation::Point _PointerPosition);
 		bool Render();
 		void SaveState();
 
@@ -59,6 +59,9 @@ namespace PatchworkDx12
 
 		// imgui
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        g_pd3dSrvDescHeap;
+
+		// remove it!!!
+		Windows::Foundation::Point m_PointerPosition;
 	};
 }
 

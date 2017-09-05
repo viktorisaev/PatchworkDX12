@@ -12,7 +12,7 @@ namespace PatchworkDx12
 	public:
 		PatchworkDx12Main();
 		void CreateRenderers(const std::shared_ptr<DX::DeviceResources>& deviceResources);
-		void Update();
+		void Update(Windows::Foundation::Point _PointerPosition);	// _PointerPosition x=(-1..1), y=(-1..1)
 		bool Render();
 
 		void OnWindowSizeChanged();

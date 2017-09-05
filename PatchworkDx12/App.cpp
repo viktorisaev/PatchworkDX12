@@ -44,38 +44,29 @@ void App::Initialize(CoreApplicationView^ applicationView)
 {
 	// Register event handlers for app lifecycle. This example includes Activated, so that we
 	// can make the CoreWindow active and start rendering on the window.
-	applicationView->Activated +=
-		ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &App::OnActivated);
+	applicationView->Activated += ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &App::OnActivated);
 
-	CoreApplication::Suspending +=
-		ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
+	CoreApplication::Suspending += ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
 
-	CoreApplication::Resuming +=
-		ref new EventHandler<Platform::Object^>(this, &App::OnResuming);
+	CoreApplication::Resuming += ref new EventHandler<Platform::Object^>(this, &App::OnResuming);
 }
 
 // Called when the CoreWindow object is created (or re-created).
 void App::SetWindow(CoreWindow^ window)
 {
-	window->SizeChanged += 
-		ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
+	window->SizeChanged += ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
 
-	window->VisibilityChanged +=
-		ref new TypedEventHandler<CoreWindow^, VisibilityChangedEventArgs^>(this, &App::OnVisibilityChanged);
+	window->VisibilityChanged += ref new TypedEventHandler<CoreWindow^, VisibilityChangedEventArgs^>(this, &App::OnVisibilityChanged);
 
-	window->Closed += 
-		ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &App::OnWindowClosed);
+	window->Closed += ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &App::OnWindowClosed);
 
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
-	currentDisplayInformation->DpiChanged +=
-		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDpiChanged);
+	currentDisplayInformation->DpiChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDpiChanged);
 
-	currentDisplayInformation->OrientationChanged +=
-		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnOrientationChanged);
+	currentDisplayInformation->OrientationChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnOrientationChanged);
 
-	DisplayInformation::DisplayContentsInvalidated +=
-		ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
+	DisplayInformation::DisplayContentsInvalidated += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
 }
 
 // Initializes scene resources, or loads a previously saved app state.
@@ -99,7 +90,14 @@ void App::Run()
 			auto commandQueue = GetDeviceResources()->GetCommandQueue();
 			PIXBeginEvent(commandQueue, 0, L"Update");
 			{
-				m_main->Update();
+				CoreWindow ^window = CoreWindow::GetForCurrentThread();
+				Rect bounds = window->Bounds;
+				Point mouseAbsPoint = window->PointerPosition;
+				decltype(Rect::Width) halfWidth = bounds.Width / 2;
+				decltype(Rect::Height) halfHeight = bounds.Height / 2;
+				Point mouseCenterWindowPos = Point(mouseAbsPoint.X - bounds.Left - halfWidth, mouseAbsPoint.Y - bounds.Top - halfHeight);
+				Point mouseCenterNormWindowPos = Point(mouseCenterWindowPos.X / halfWidth, - mouseCenterWindowPos.Y / halfHeight);
+				m_main->Update(mouseCenterNormWindowPos);
 			}
 			PIXEndEvent(commandQueue);
 

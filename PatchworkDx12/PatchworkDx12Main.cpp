@@ -30,13 +30,13 @@ void PatchworkDx12Main::CreateRenderers(const std::shared_ptr<DX::DeviceResource
 }
 
 // Updates the application state once per frame.
-void PatchworkDx12Main::Update()
+void PatchworkDx12Main::Update(Point _PointerPosition)
 {
 	// Update scene objects.
 	m_timer.Tick([&]()
 	{
 		// TODO: Replace this with your app's content update functions.
-		m_sceneRenderer->Update(m_timer);
+		m_sceneRenderer->Update(m_timer, _PointerPosition);
 	});
 }
 

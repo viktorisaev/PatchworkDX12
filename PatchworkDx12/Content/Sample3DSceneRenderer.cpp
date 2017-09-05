@@ -141,22 +141,10 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 		CD3DX12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&defaultHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&vertexBufferDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_vertexBuffer)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &defaultHeapProperties , D3D12_HEAP_FLAG_NONE , &vertexBufferDesc , D3D12_RESOURCE_STATE_COPY_DEST , nullptr , IID_PPV_ARGS(&m_vertexBuffer)));
 
 		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&uploadHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&vertexBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&vertexBufferUpload)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &vertexBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&vertexBufferUpload)));
 
         NAME_D3D12_OBJECT(m_vertexBuffer);
 
@@ -169,9 +157,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 			UpdateSubresources(m_commandList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
 
-			CD3DX12_RESOURCE_BARRIER vertexBufferResourceBarrier =
-				CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-			m_commandList->ResourceBarrier(1, &vertexBufferResourceBarrier);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 		}
 
 		// Load mesh indices. Each trio of indices represents a triangle to be rendered on the screen.
@@ -205,21 +191,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		Microsoft::WRL::ComPtr<ID3D12Resource> indexBufferUpload;
 
 		CD3DX12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&defaultHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&indexBufferDesc,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			nullptr,
-			IID_PPV_ARGS(&m_indexBuffer)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &defaultHeapProperties , D3D12_HEAP_FLAG_NONE , &indexBufferDesc , D3D12_RESOURCE_STATE_COPY_DEST , nullptr , IID_PPV_ARGS(&m_indexBuffer)));
 
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&uploadHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&indexBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&indexBufferUpload)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &indexBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&indexBufferUpload)));
 
 		NAME_D3D12_OBJECT(m_indexBuffer);
 
@@ -232,9 +206,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 			UpdateSubresources(m_commandList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData);
 
-			CD3DX12_RESOURCE_BARRIER indexBufferResourceBarrier =
-				CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-			m_commandList->ResourceBarrier(1, &indexBufferResourceBarrier);
+			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 		}
 
 		// Create a descriptor heap for the constant buffers.
@@ -250,13 +222,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		}
 
 		CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(DX::c_frameCount * c_alignedConstantBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(
-			&uploadHeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&constantBufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_constantBuffer)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &constantBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&m_constantBuffer)));
 
         NAME_D3D12_OBJECT(m_constantBuffer);
 
@@ -364,7 +330,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 }
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
-void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
+void Sample3DSceneRenderer::Update(DX::StepTimer const& timer, Point _PointerPosition)
 {
 	if (m_loadingComplete)
 	{
@@ -379,6 +345,8 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 		// Update the constant buffer resource.
 		UINT8* destination = m_mappedConstantBuffer + (m_deviceResources->GetCurrentFrameIndex() * c_alignedConstantBufferSize);
 		memcpy(destination, &m_constantBufferData, sizeof(m_constantBufferData));
+
+		m_PointerPosition = _PointerPosition;
 	}
 }
 
@@ -474,9 +442,7 @@ bool Sample3DSceneRenderer::Render()
 		m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
 		// Indicate this resource will be in use as a render target.
-		CD3DX12_RESOURCE_BARRIER renderTargetResourceBarrier =
-			CD3DX12_RESOURCE_BARRIER::Transition(m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		m_commandList->ResourceBarrier(1, &renderTargetResourceBarrier);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		// Record drawing commands.
 		D3D12_CPU_DESCRIPTOR_HANDLE renderTargetView = m_deviceResources->GetRenderTargetView();
@@ -502,6 +468,7 @@ bool Sample3DSceneRenderer::Render()
 			ImGui::Begin("London control");
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
+			ImGui::Text("%Mouse=( %.3f , %.3f )", m_PointerPosition.X, m_PointerPosition.X);
 			ImGui::End();
 
 			//ImVec4 clear_col = ImColor(114, 144, 154);
@@ -512,9 +479,7 @@ bool Sample3DSceneRenderer::Render()
 		ImGui::Render();
 
 		// Indicate that the render target will now be used to present when the command list is done executing.
-		CD3DX12_RESOURCE_BARRIER presentResourceBarrier =
-			CD3DX12_RESOURCE_BARRIER::Transition(m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		m_commandList->ResourceBarrier(1, &presentResourceBarrier);
+		m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	}
 	PIXEndEvent(m_commandList.Get());
 
