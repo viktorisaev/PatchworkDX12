@@ -16,3 +16,6 @@
 #if defined(_DEBUG)
 #include <dxgidebug.h>
 #endif
+
+#include "Content\TeapotData.h"
+#include <cstdlib>

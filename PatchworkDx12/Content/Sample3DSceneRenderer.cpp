@@ -1,7 +1,6 @@
 ﻿#include "pch.h"
 #include "Sample3DSceneRenderer.h"
 
-#include "..\Common\DirectXHelper.h"
 #include <ppltasks.h>
 #include <synchapi.h>
 
@@ -29,7 +28,8 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources),
-	m_IsWireframe(true)
+	m_IsWireframe(true),	// wireframe
+	m_tessFactor(4)			// default tess factor
 {
 	LoadState();
 	ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
@@ -45,39 +45,23 @@ Sample3DSceneRenderer::~Sample3DSceneRenderer()
 }
 
 
+
 // forward declaration of helper functions
+
 Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d3dDevice, D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, DXGI_FORMAT _RTVFormat, DXGI_FORMAT _DSVFormat, 
 	ComPtr<ID3D12RootSignature> _RootSignature, D3D12_SHADER_BYTECODE _VertexShaderBlob, D3D12_SHADER_BYTECODE _HullShaderBlob, D3D12_SHADER_BYTECODE _DomainShaderBlob, D3D12_SHADER_BYTECODE _PixelShaderBlob);
+
+Microsoft::WRL::ComPtr<ID3D12RootSignature> createRootSignature(ID3D12Device* _d3dDevice);
+
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> createTransformsAndColorsDescHeap(ID3D12Device* _d3dDevice);
+
 
 
 void Sample3DSceneRenderer::CreateDeviceDependentResources()
 {
 	ID3D12Device* d3dDevice = m_deviceResources->GetD3DDevice();
 
-	// Create a root signature with a single constant buffer slot.
-	{
-		CD3DX12_DESCRIPTOR_RANGE range;
-		CD3DX12_ROOT_PARAMETER parameter;
-
-		range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-		parameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
-
-		D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | // Only the input assembler stage needs access to the constant buffer.
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-			D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-
-		CD3DX12_ROOT_SIGNATURE_DESC descRootSignature;
-		descRootSignature.Init(1, &parameter, 0, nullptr, rootSignatureFlags);
-
-		ComPtr<ID3DBlob> pSignature;
-		ComPtr<ID3DBlob> pError;
-		DX::ThrowIfFailed(D3D12SerializeRootSignature(&descRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, pSignature.GetAddressOf(), pError.GetAddressOf()));
-		DX::ThrowIfFailed(d3dDevice->CreateRootSignature(0, pSignature->GetBufferPointer(), pSignature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-        NAME_D3D12_OBJECT(m_rootSignature);
-	}
+	m_rootSignature = createRootSignature(d3dDevice);
 
 	// Load shaders asynchronously.
 	auto createVSTask = DX::ReadDataAsync(L"VertexShader.cso").then([this](std::vector<byte>& fileData) {
@@ -99,11 +83,19 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	// Create the pipeline state once the shaders are loaded.
 	auto createPipelineStateTask = (createPSTask && createHSTask && createDSTask && createVSTask).then([this]() {
 
-		m_pipelineStateWireframe = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(),
-			m_rootSignature, CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size()), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size()));
+		m_pipelineStateWireframe = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
+			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
+			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
+			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
+			CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size())
+		);
 
-		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(),
-			m_rootSignature, CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size()), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size()));
+		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
+			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
+			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
+			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
+			CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size())
+		);
 
 		// Shader data can be deleted once the pipeline state is created.
 		m_vertexShader.clear();
@@ -115,10 +107,38 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	auto createAssetsTask = createPipelineStateTask.then([this]() {
 		auto d3dDevice = m_deviceResources->GetD3DDevice();
 
+
 		// Create a command list.
 		DX::ThrowIfFailed(d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_deviceResources->GetCommandAllocator(), nullptr, IID_PPV_ARGS(&m_commandList)));
         NAME_D3D12_OBJECT(m_commandList);
 
+		// color and transform
+		m_TransformsAndColorsDescHeap = createTransformsAndColorsDescHeap(d3dDevice);
+
+		using PointType = decltype(TeapotData::points)::value_type;
+		using TransformType = decltype(TeapotData::patchesTransforms)::value_type;
+		using ColorType = decltype(TeapotData::patchesColors)::value_type;
+
+		m_ControlPointsBuffer = createVertexBuffer(d3dDevice, TeapotData::points, L"control points");
+		m_ControlPointsIndexBuffer = createIndexBuffer(d3dDevice, TeapotData::patches, L"patches");
+
+		m_ControlPointsBufferView.BufferLocation = m_ControlPointsBuffer->GetGPUVirtualAddress();
+		m_ControlPointsBufferView.StrideInBytes = static_cast<UINT>(sizeof(PointType));
+		m_ControlPointsBufferView.SizeInBytes = static_cast<UINT>(m_ControlPointsBufferView.StrideInBytes * TeapotData::points.size());
+
+		m_ControlPointsIndexBufferView.BufferLocation = m_ControlPointsIndexBuffer->GetGPUVirtualAddress();
+		m_ControlPointsIndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+		m_ControlPointsIndexBufferView.SizeInBytes = static_cast<UINT>(TeapotData::patches.size() * sizeof(uint32_t));
+
+		m_TransformsBuffer = createStructuredBuffer(d3dDevice, TeapotData::patchesTransforms, L"transforms");
+		m_ColorsBuffer = createStructuredBuffer(d3dDevice, TeapotData::patchesColors, L"colors");
+
+
+		createSrv<TransformType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 0, m_TransformsBuffer.Get(), TeapotData::patchesTransforms.size());
+		createSrv<ColorType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 1, m_ColorsBuffer.Get(), TeapotData::patchesColors.size());
+
+
+/*
 		// Cube vertices. Each vertex has a position and a color.
 		VertexPositionColor cubeVertices[] =
 		{
@@ -143,7 +163,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &defaultHeapProperties , D3D12_HEAP_FLAG_NONE , &vertexBufferDesc , D3D12_RESOURCE_STATE_COPY_DEST , nullptr , IID_PPV_ARGS(&m_vertexBuffer)));
 
 		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &vertexBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&vertexBufferUpload)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBufferUpload)));
 
         NAME_D3D12_OBJECT(m_vertexBuffer);
 
@@ -207,6 +227,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 		}
+		*/
 
 		// Create a descriptor heap for the constant buffers.
 		{
@@ -220,6 +241,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
             NAME_D3D12_OBJECT(m_cbvHeap);
 		}
 
+		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
 		CD3DX12_RESOURCE_DESC constantBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(DX::c_frameCount * c_alignedConstantBufferSize);
 		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &constantBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&m_constantBuffer)));
 
@@ -247,8 +269,11 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		ZeroMemory(m_mappedConstantBuffer, DX::c_frameCount * c_alignedConstantBufferSize);
 		// We don't unmap this until the app closes. Keeping things mapped for the lifetime of the resource is okay.
 
+
 		// Close the command list and execute it to begin the vertex/index buffer copy into the GPU's default heap.
 		DX::ThrowIfFailed(m_commandList->Close());
+
+/*
 		ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
 		m_deviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
@@ -263,7 +288,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		// Wait for the command list to finish executing; the vertex/index buffers need to be uploaded to the GPU before the upload resources go out of scope.
 		m_deviceResources->WaitForGpu();
-
+*/
 
 		// imgui
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
@@ -305,19 +330,23 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	// this transform should not be applied.
 
 	// This sample makes use of a right-handed coordinate system using row-major matrices.
-	XMMATRIX perspectiveMatrix = XMMatrixPerspectiveFovRH( fovAngleY , aspectRatio , 1.0f , 100.0f	);
+	XMMATRIX perspectiveMatrix = XMMatrixPerspectiveFovLH( fovAngleY , aspectRatio , 1.0f , 100.0f	);
 
 	XMFLOAT4X4 orientation = m_deviceResources->GetOrientationTransform3D();
 	XMMATRIX orientationMatrix = XMLoadFloat4x4(&orientation);
 
-	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+	XMMATRIX proj = perspectiveMatrix * orientationMatrix;
+
+//	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
 	static const XMVECTORF32 eye = { 0.0f, 0.0f, -10.0f, 0.0f };
 	static const XMVECTORF32 at = { 0.0f, 0.0f, 0.0f, 0.0f };
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
 
-	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
+	m_viewproj = XMMatrixLookAtLH(eye, at, up) * proj;
+
+//	XMStoreFloat4x4(&m_constantBufferData.view, /*XMMatrixTranspose(*/XMMatrixLookAtLH(eye, at, up)/*)*/);
 }
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
@@ -347,12 +376,18 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer, Point _PointerPos
 void Sample3DSceneRenderer::Rotate(float _Pitch, float _Roll)
 {
 
+//	XMMATRIX viewProjMatrixDX = XMLoadFloat4x4(&m_constantBufferData.view);
+
 	XMMATRIX modelMatrixRotationDX = XMMatrixRotationRollPitchYaw(_Roll, _Pitch, 0.0f);
 	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
 	XMMATRIX modelMatrixDX = modelMatrixRotationDX * modelMatrixTranslationDX;
+	XMFLOAT4X4 mvpMatrix;
+	XMStoreFloat4x4(&mvpMatrix, modelMatrixDX * m_viewproj);
+
+
 
 	// store model matrix for current object rotation
-	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(modelMatrixDX));
+	m_constantBufferData.model =  mvpMatrix;// XMMatrixTranspose(modelMatrixDX));
 }
 
 
@@ -429,12 +464,25 @@ bool Sample3DSceneRenderer::Render()
 	{
 		// Set the graphics root signature and descriptor heaps to be used by this frame.
 		m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-		ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
-		m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+		//ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
+		//m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 		// Bind the current frame's constant buffer to the pipeline.
-		CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_deviceResources->GetCurrentFrameIndex(), m_cbvDescriptorSize);
-		m_commandList->SetGraphicsRootDescriptorTable(0, gpuHandle);
+//		CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_deviceResources->GetCurrentFrameIndex(), m_cbvDescriptorSize);
+//		m_commandList->SetGraphicsRootDescriptorTable(0, gpuHandle);
+
+		// set MVP
+		m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress() + m_deviceResources->GetCurrentFrameIndex() * c_alignedConstantBufferSize);
+
+		// set tesselator
+		int rootConstants[]{ m_tessFactor, m_tessFactor };
+		m_commandList->SetGraphicsRoot32BitConstants(1, _countof(rootConstants), rootConstants, 0);
+
+		ID3D12DescriptorHeap* ppTransHeaps[] = { m_TransformsAndColorsDescHeap.Get() };
+		m_commandList->SetDescriptorHeaps(1, ppTransHeaps);
+		D3D12_GPU_DESCRIPTOR_HANDLE d = m_TransformsAndColorsDescHeap->GetGPUDescriptorHandleForHeapStart();
+		d.ptr += 0;
+		m_commandList->SetGraphicsRootDescriptorTable(2, d);
 
 		// Set the viewport and scissor rectangle.
 		D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
@@ -452,10 +500,13 @@ bool Sample3DSceneRenderer::Render()
 
 		m_commandList->OMSetRenderTargets(1, &renderTargetView, false, &depthStencilView);
 
-		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->IASetIndexBuffer(&m_indexBufferView);
-		m_commandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST);	// useprimitive topology as 16-points patch
+		std::vector<D3D12_VERTEX_BUFFER_VIEW> myArray { m_ControlPointsBufferView };
+		m_commandList->IASetVertexBuffers(0, static_cast<UINT>(myArray.size()), myArray.data());
+		m_commandList->IASetIndexBuffer(&m_ControlPointsIndexBufferView);
+		uint32_t numIndices = m_ControlPointsIndexBufferView.SizeInBytes / sizeof(uint32_t);
+		m_commandList->DrawIndexedInstanced(numIndices, 1, 0, 0, 0);
+
 
 		// ImGui
 		Size outputSize = m_deviceResources->GetOutputSize();
@@ -470,6 +521,7 @@ bool Sample3DSceneRenderer::Render()
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
 			ImGui::Text("%Mouse=( %.3f , %.3f )", m_PointerPosition.X, m_PointerPosition.X);
 			ImGui::Checkbox("Wireframe", &m_IsWireframe);
+			ImGui::InputInt("Tess Factor", &m_tessFactor, 1);
 			ImGui::End();
 
 			//ImVec4 clear_col = ImColor(114, 144, 154);
@@ -556,7 +608,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 	pipelineStateDesc.BlendState = blendDesc;
 	pipelineStateDesc.DepthStencilState = depthStencilDesc;
 	pipelineStateDesc.SampleMask = UINT_MAX;
-	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;//D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;			// IMPORTANT!!! enable patch topology.
+	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;	// enable patch topology.
 	pipelineStateDesc.NumRenderTargets = 1;
 	pipelineStateDesc.RTVFormats[0] = _RTVFormat;
 	pipelineStateDesc.DSVFormat = _DSVFormat;
@@ -567,3 +619,83 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 
 	return pipelineState;
 }
+
+
+// root signature
+
+Microsoft::WRL::ComPtr<ID3D12RootSignature> createRootSignature(ID3D12Device* _d3dDevice)
+{
+	D3D12_DESCRIPTOR_RANGE dsTransformAndColorSrvRange;
+	ZeroMemory(&dsTransformAndColorSrvRange, sizeof(dsTransformAndColorSrvRange));
+	dsTransformAndColorSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	dsTransformAndColorSrvRange.NumDescriptors = 2;
+	dsTransformAndColorSrvRange.BaseShaderRegister = 0;
+	dsTransformAndColorSrvRange.RegisterSpace = 0;
+	dsTransformAndColorSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER dsTransformAndColorSrv;
+	ZeroMemory(&dsTransformAndColorSrv, sizeof(dsTransformAndColorSrv));
+	dsTransformAndColorSrv.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	dsTransformAndColorSrv.DescriptorTable = { 1, &dsTransformAndColorSrvRange };
+	dsTransformAndColorSrv.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+
+	// for domain - register(b0)
+	D3D12_ROOT_PARAMETER dsObjCb;
+	ZeroMemory(&dsObjCb, sizeof(dsObjCb));
+	dsObjCb.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	dsObjCb.Descriptor = { 0, 0 };
+	dsObjCb.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+
+	// for hull - register(b0)
+	D3D12_ROOT_PARAMETER hsTessFactorsCb;
+	ZeroMemory(&hsTessFactorsCb, sizeof(hsTessFactorsCb));
+	hsTessFactorsCb.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+	hsTessFactorsCb.Constants = { 0, 0, 2 };
+	hsTessFactorsCb.ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
+
+	D3D12_ROOT_PARAMETER rootParameters[]{ dsObjCb, hsTessFactorsCb, dsTransformAndColorSrv };
+
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags{
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS
+	};
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+	ZeroMemory(&rootSignatureDesc, sizeof(rootSignatureDesc));
+	rootSignatureDesc.NumParameters = static_cast<UINT>(_countof(rootParameters));
+	rootSignatureDesc.pParameters = rootParameters;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = rootSignatureFlags;
+
+	ComPtr<ID3DBlob> signature;
+	ComPtr<ID3DBlob> error;
+	DX::ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, signature.ReleaseAndGetAddressOf(), error.ReleaseAndGetAddressOf()));
+
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	DX::ThrowIfFailed(_d3dDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(rootSignature.ReleaseAndGetAddressOf())));
+	NAME_D3D12_OBJECT(rootSignature);
+
+	return rootSignature;
+}
+
+
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> createTransformsAndColorsDescHeap(ID3D12Device* _d3dDevice)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc;
+	ZeroMemory(&heapDesc, sizeof(heapDesc));
+	heapDesc.NumDescriptors = 2;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NodeMask = 0;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> transformsAndColorsDescHeap;
+	DX::ThrowIfFailed(_d3dDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(transformsAndColorsDescHeap.ReleaseAndGetAddressOf())));
+	NAME_D3D12_OBJECT(transformsAndColorsDescHeap);
+
+	return transformsAndColorsDescHeap;
+}
+
+

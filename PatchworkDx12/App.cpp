@@ -67,6 +67,10 @@ void App::SetWindow(CoreWindow^ window)
 	currentDisplayInformation->OrientationChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnOrientationChanged);
 
 	DisplayInformation::DisplayContentsInvalidated += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
+
+	window->PointerMoved += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnMouseActive);
+	window->PointerPressed += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnMouseActive);
+	window->PointerReleased += ref new TypedEventHandler<CoreWindow^, PointerEventArgs^>(this, &App::OnMouseActive);
 }
 
 // Initializes scene resources, or loads a previously saved app state.
@@ -223,4 +227,11 @@ std::shared_ptr<DX::DeviceResources> App::GetDeviceResources()
 		m_main->CreateRenderers(m_deviceResources);
 	}
 	return m_deviceResources;
+}
+
+
+void App::OnMouseActive(CoreWindow^ sender, PointerEventArgs^ args)
+{
+	m_main->OnMouseMoved(int(args->CurrentPoint->Position.X), int(args->CurrentPoint->Position.Y));
+	m_main->OnMousePressedReleased(args->CurrentPoint->Properties->IsLeftButtonPressed, args->CurrentPoint->Properties->IsRightButtonPressed);
 }
