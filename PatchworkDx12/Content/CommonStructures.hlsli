@@ -35,8 +35,10 @@ struct DomainToPixel
 
 struct ConstantBufferPerObj
 {
-	row_major float4x4 wvpMat;
+	row_major float4x4 wMat;
+	matrix vpMat;
 };
+
 
 // number of control points to control the surface. We use 16-points patch.
 #define NUM_CONTROL_POINTS 16

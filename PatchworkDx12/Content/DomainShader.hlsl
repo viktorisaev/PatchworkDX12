@@ -1,10 +1,7 @@
-// http://www.gdcvault.com/play/1012740/direct3d
-
 #include "CommonStructures.hlsli"
 
 
 ConstantBufferPerObj constPerObject : register(b0);
-
 
 struct PatchTransform
 {
@@ -67,7 +64,8 @@ DomainToPixel main(PatchConstantData input, float2 domain : SV_DomainLocation, c
 	float4 localPosTransformed = mul(float4(localPos, 1.0f), transform);
 
 	DomainToPixel output;
-	output.pos = mul(localPosTransformed, constPerObject.wvpMat);
+	output.pos = mul(localPosTransformed, constPerObject.wMat);
+	output.pos = mul(output.pos, constPerObject.vpMat);
 	output.color = patchColors[patchID].color;
 
 	return output;

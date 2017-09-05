@@ -347,7 +347,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 
 	m_viewproj = XMMatrixLookAtLH(eye, at, up) * proj;
 
-//	XMStoreFloat4x4(&m_constantBufferData.view, /*XMMatrixTranspose(*/XMMatrixLookAtLH(eye, at, up)/*)*/);
+	XMStoreFloat4x4(&m_constantBufferData.viewproj, XMMatrixTranspose(m_viewproj));
 }
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
@@ -380,15 +380,9 @@ void Sample3DSceneRenderer::Rotate(float _Pitch, float _Roll)
 //	XMMATRIX viewProjMatrixDX = XMLoadFloat4x4(&m_constantBufferData.view);
 
 	XMMATRIX modelMatrixRotationDX = XMMatrixRotationRollPitchYaw(_Roll, _Pitch, 0.0f);
-	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
-	XMMATRIX modelMatrixDX = modelMatrixRotationDX * modelMatrixTranslationDX;
-	XMFLOAT4X4 mvpMatrix;
-	XMStoreFloat4x4(&mvpMatrix, modelMatrixDX * m_viewproj);
-
-
-
-	// store model matrix for current object rotation
-	m_constantBufferData.model =  mvpMatrix;// XMMatrixTranspose(modelMatrixDX));
+	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(0.0f, 0.0f, -1.5f);
+	XMMATRIX modelMatrixDX = modelMatrixTranslationDX * modelMatrixRotationDX;
+	XMStoreFloat4x4(&m_constantBufferData.model, modelMatrixDX);
 }
 
 
@@ -627,35 +621,31 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 
 Microsoft::WRL::ComPtr<ID3D12RootSignature> createRootSignature(ID3D12Device* _d3dDevice)
 {
-	D3D12_DESCRIPTOR_RANGE dsTransformAndColorSrvRange;
-	ZeroMemory(&dsTransformAndColorSrvRange, sizeof(dsTransformAndColorSrvRange));
+	D3D12_DESCRIPTOR_RANGE dsTransformAndColorSrvRange = {};
 	dsTransformAndColorSrvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	dsTransformAndColorSrvRange.NumDescriptors = 2;
 	dsTransformAndColorSrvRange.BaseShaderRegister = 0;
 	dsTransformAndColorSrvRange.RegisterSpace = 0;
 	dsTransformAndColorSrvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER dsTransformAndColorSrv;
-	ZeroMemory(&dsTransformAndColorSrv, sizeof(dsTransformAndColorSrv));
+	D3D12_ROOT_PARAMETER dsTransformAndColorSrv = {};
 	dsTransformAndColorSrv.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	dsTransformAndColorSrv.DescriptorTable = { 1, &dsTransformAndColorSrvRange };
 	dsTransformAndColorSrv.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
 
-	// for domain - register(b0)
-	D3D12_ROOT_PARAMETER dsObjCb;
-	ZeroMemory(&dsObjCb, sizeof(dsObjCb));
-	dsObjCb.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	dsObjCb.Descriptor = { 0, 0 };
-	dsObjCb.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
+	// for domain - register(b0) - model
+	D3D12_ROOT_PARAMETER dsObjCb0 = {};
+	dsObjCb0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	dsObjCb0.Descriptor = { 0, 0 };
+	dsObjCb0.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
 
 	// for hull - register(b0)
-	D3D12_ROOT_PARAMETER hsTessFactorsCb;
-	ZeroMemory(&hsTessFactorsCb, sizeof(hsTessFactorsCb));
+	D3D12_ROOT_PARAMETER hsTessFactorsCb = {};
 	hsTessFactorsCb.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 	hsTessFactorsCb.Constants = { 0, 0, 2 };
 	hsTessFactorsCb.ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
 
-	D3D12_ROOT_PARAMETER rootParameters[]{ dsObjCb, hsTessFactorsCb, dsTransformAndColorSrv };
+	D3D12_ROOT_PARAMETER rootParameters[]{ dsObjCb0, hsTessFactorsCb, dsTransformAndColorSrv };
 
 	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags{
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -664,8 +654,7 @@ Microsoft::WRL::ComPtr<ID3D12RootSignature> createRootSignature(ID3D12Device* _d
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS
 	};
 
-	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-	ZeroMemory(&rootSignatureDesc, sizeof(rootSignatureDesc));
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 	rootSignatureDesc.NumParameters = static_cast<UINT>(_countof(rootParameters));
 	rootSignatureDesc.pParameters = rootParameters;
 	rootSignatureDesc.NumStaticSamplers = 0;
