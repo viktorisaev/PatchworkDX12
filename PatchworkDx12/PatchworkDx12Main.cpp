@@ -90,3 +90,18 @@ void PatchworkDx12Main::OnDeviceRemoved()
 	m_sceneRenderer->SaveState();
 	m_sceneRenderer = nullptr;
 }
+
+// handle mouse in imgui
+extern LRESULT ImGui_ImplDX12_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+void PatchworkDx12Main::OnMouseMoved(int x, int y)
+{
+	ImGui_ImplDX12_WndProcHandler(0, WM_MOUSEMOVE, 0, y << 16 | x);
+}
+
+
+void PatchworkDx12Main::OnMousePressedReleased(bool left, bool right)
+{
+	ImGui_ImplDX12_WndProcHandler(0, left ? WM_LBUTTONDOWN : WM_LBUTTONUP, 0, 0);
+	ImGui_ImplDX12_WndProcHandler(0, right ? WM_RBUTTONDOWN : WM_RBUTTONUP, 0, 0);
+}

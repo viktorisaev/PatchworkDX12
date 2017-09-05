@@ -28,7 +28,8 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_radiansPerMouse(XM_PI),	// rotation sensivity depends on mouse movements
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
-	m_deviceResources(deviceResources)
+	m_deviceResources(deviceResources),
+	m_IsWireframe(true)
 {
 	LoadState();
 	ZeroMemory(&m_constantBufferData, sizeof(m_constantBufferData));
@@ -43,9 +44,15 @@ Sample3DSceneRenderer::~Sample3DSceneRenderer()
 	m_mappedConstantBuffer = nullptr;
 }
 
+
+// forward declaration of helper functions
+Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d3dDevice, D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, DXGI_FORMAT _RTVFormat, DXGI_FORMAT _DSVFormat, 
+	ComPtr<ID3D12RootSignature> _RootSignature, D3D12_SHADER_BYTECODE _VertexShaderBlob, D3D12_SHADER_BYTECODE _HullShaderBlob, D3D12_SHADER_BYTECODE _DomainShaderBlob, D3D12_SHADER_BYTECODE _PixelShaderBlob);
+
+
 void Sample3DSceneRenderer::CreateDeviceDependentResources()
 {
-	auto d3dDevice = m_deviceResources->GetD3DDevice();
+	ID3D12Device* d3dDevice = m_deviceResources->GetD3DDevice();
 
 	// Create a root signature with a single constant buffer slot.
 	{
@@ -81,43 +88,28 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		m_pixelShader = fileData;
 	});
 
+
 	// Create the pipeline state once the shaders are loaded.
 	auto createPipelineStateTask = (createPSTask && createVSTask).then([this]() {
 
-		static const D3D12_INPUT_ELEMENT_DESC inputLayout[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		};
+		m_pipelineStateWireframe = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(),
+			m_rootSignature, CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size()), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size()));
 
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC state = {};
-		state.InputLayout = { inputLayout, _countof(inputLayout) };
-		state.pRootSignature = m_rootSignature.Get();
-        state.VS = CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size());
-        state.PS = CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size());
-		state.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		state.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-		state.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-		state.SampleMask = UINT_MAX;
-		state.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		state.NumRenderTargets = 1;
-		state.RTVFormats[0] = m_deviceResources->GetBackBufferFormat();
-		state.DSVFormat = m_deviceResources->GetDepthBufferFormat();
-		state.SampleDesc.Count = 1;
-
-		DX::ThrowIfFailed(m_deviceResources->GetD3DDevice()->CreateGraphicsPipelineState(&state, IID_PPV_ARGS(&m_pipelineState)));
+		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(),
+			m_rootSignature, CD3DX12_SHADER_BYTECODE(&m_vertexShader[0], m_vertexShader.size()), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(nullptr, 0), CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size()));
 
 		// Shader data can be deleted once the pipeline state is created.
 		m_vertexShader.clear();
 		m_pixelShader.clear();
 	});
 
+
 	// Create and upload cube geometry resources to the GPU.
 	auto createAssetsTask = createPipelineStateTask.then([this]() {
 		auto d3dDevice = m_deviceResources->GetD3DDevice();
 
 		// Create a command list.
-		DX::ThrowIfFailed(d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_deviceResources->GetCommandAllocator(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+		DX::ThrowIfFailed(d3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_deviceResources->GetCommandAllocator(), nullptr, IID_PPV_ARGS(&m_commandList)));
         NAME_D3D12_OBJECT(m_commandList);
 
 		// Cube vertices. Each vertex has a position and a color.
@@ -424,7 +416,7 @@ bool Sample3DSceneRenderer::Render()
 	DX::ThrowIfFailed(m_deviceResources->GetCommandAllocator()->Reset());
 
 	// The command list can be reset anytime after ExecuteCommandList() is called.
-	DX::ThrowIfFailed(m_commandList->Reset(m_deviceResources->GetCommandAllocator(), m_pipelineState.Get()));
+	DX::ThrowIfFailed(m_commandList->Reset(m_deviceResources->GetCommandAllocator(), m_IsWireframe ? m_pipelineStateWireframe.Get() : m_pipelineStateSolid.Get() ));		// set pipeline state depends on "wireframe" mode
 
 	PIXBeginEvent(m_commandList.Get(), 0, L"Draw the cube");
 	{
@@ -470,6 +462,7 @@ bool Sample3DSceneRenderer::Render()
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
 			ImGui::Text("%Mouse=( %.3f , %.3f )", m_PointerPosition.X, m_PointerPosition.X);
+			ImGui::Checkbox("Wireframe", &m_IsWireframe);
 			ImGui::End();
 
 			//ImVec4 clear_col = ImColor(114, 144, 154);
@@ -491,4 +484,80 @@ bool Sample3DSceneRenderer::Render()
 	m_deviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	return true;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Helpers
+
+Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d3dDevice, D3D12_FILL_MODE fillMode, D3D12_CULL_MODE cullMode, DXGI_FORMAT _RTVFormat, DXGI_FORMAT _DSVFormat,
+	ComPtr<ID3D12RootSignature> _RootSignature, D3D12_SHADER_BYTECODE _VertexShaderBlob, D3D12_SHADER_BYTECODE _HullShaderBlob, D3D12_SHADER_BYTECODE _DomainShaderBlob, D3D12_SHADER_BYTECODE _PixelShaderBlob
+)
+{
+	std::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDescs
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
+
+	D3D12_RASTERIZER_DESC rasterizerDesc;
+	ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
+	rasterizerDesc.FillMode = fillMode;
+	rasterizerDesc.CullMode = cullMode;
+	rasterizerDesc.FrontCounterClockwise = true;// FALSE;
+	rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	rasterizerDesc.DepthClipEnable = TRUE;
+	rasterizerDesc.MultisampleEnable = FALSE;
+	rasterizerDesc.AntialiasedLineEnable = FALSE;
+	rasterizerDesc.ForcedSampleCount = 0;
+	rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	D3D12_BLEND_DESC blendDesc;
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0] = {
+		FALSE,FALSE,
+		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+		D3D12_LOGIC_OP_NOOP,
+		D3D12_COLOR_WRITE_ENABLE_ALL
+	};
+
+	D3D12_DEPTH_STENCIL_DESC depthStencilDesc;
+	ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
+	depthStencilDesc.DepthEnable = TRUE;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	depthStencilDesc.StencilEnable = FALSE;
+	depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
+	depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+	const D3D12_DEPTH_STENCILOP_DESC defaultStencilOp = { D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_STENCIL_OP_KEEP, D3D12_COMPARISON_FUNC_ALWAYS };
+	depthStencilDesc.FrontFace = defaultStencilOp;
+	depthStencilDesc.BackFace = defaultStencilOp;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc;
+	ZeroMemory(&pipelineStateDesc, sizeof(pipelineStateDesc));
+	pipelineStateDesc.InputLayout = { inputElementDescs.data(), static_cast<UINT>(inputElementDescs.size()) };
+	pipelineStateDesc.pRootSignature = _RootSignature.Get();
+	pipelineStateDesc.VS = _VertexShaderBlob;
+	pipelineStateDesc.HS = _HullShaderBlob;
+	pipelineStateDesc.DS = _DomainShaderBlob;
+	pipelineStateDesc.PS = _PixelShaderBlob;
+	pipelineStateDesc.RasterizerState = rasterizerDesc;
+	pipelineStateDesc.BlendState = blendDesc;
+	pipelineStateDesc.DepthStencilState = depthStencilDesc;
+	pipelineStateDesc.SampleMask = UINT_MAX;
+	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;//D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;			// IMPORTANT!!! enable patch topology.
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0] = _RTVFormat;
+	pipelineStateDesc.DSVFormat = _DSVFormat;
+	pipelineStateDesc.SampleDesc.Count = 1;
+
+	ComPtr<ID3D12PipelineState> pipelineState;
+	DX::ThrowIfFailed(_d3dDevice->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(pipelineState.ReleaseAndGetAddressOf())));
+
+	return pipelineState;
 }

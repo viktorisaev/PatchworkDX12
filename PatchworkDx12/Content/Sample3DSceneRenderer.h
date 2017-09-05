@@ -37,7 +37,8 @@ namespace PatchworkDx12
 		// Direct3D resources for cube geometry.
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>	m_commandList;
 		Microsoft::WRL::ComPtr<ID3D12RootSignature>			m_rootSignature;
-		Microsoft::WRL::ComPtr<ID3D12PipelineState>			m_pipelineState;
+		Microsoft::WRL::ComPtr<ID3D12PipelineState>			m_pipelineStateSolid;
+		Microsoft::WRL::ComPtr<ID3D12PipelineState>			m_pipelineStateWireframe;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>		m_cbvHeap;
 		Microsoft::WRL::ComPtr<ID3D12Resource>				m_vertexBuffer;
 		Microsoft::WRL::ComPtr<ID3D12Resource>				m_indexBuffer;
@@ -55,6 +56,8 @@ namespace PatchworkDx12
 		bool	m_loadingComplete;
 		float	m_radiansPerMouse;
 		bool	m_tracking;
+
+		bool m_IsWireframe;	// true=wireframe piplene state, false=solid pipline state
 
 		// imgui
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>        g_pd3dSrvDescHeap;

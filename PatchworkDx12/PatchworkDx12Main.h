@@ -20,6 +20,9 @@ namespace PatchworkDx12
 		void OnResuming();
 		void OnDeviceRemoved();
 
+		void OnMouseMoved(int x, int y);
+		void OnMousePressedReleased(bool left, bool right);
+
 	private:
 		// TODO: Replace with your own content renderers.
 		std::unique_ptr<Sample3DSceneRenderer> m_sceneRenderer;
