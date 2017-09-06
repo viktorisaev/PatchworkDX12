@@ -26,7 +26,7 @@ struct PatchConstantData
 
 
 
-float4 bernsteinBasis(float t)
+float4 BernsteinBasis(float t)
 {
 	float invT = 1.0f - t;
 	return float4(invT * invT * invT,	// (1-t)3
@@ -35,6 +35,15 @@ float4 bernsteinBasis(float t)
 		t * t * t);						// t3
 }
 
+float4 DBernsteinBasis(float t)
+{
+	float invT = 1.0f - t;
+
+	return float4(-3 * invT * invT,		// -3(1-t)2
+		3 * invT * invT - 6 * t * invT,	// 3(1-t)2 - 6t(1-t)
+		6 * t * invT - 3 * t * t,		// 6t(1-t) - 3t2
+		3 * t * t);						// 3t2
+}
 
 float3 evaluateBezier(const OutputPatch<HullToDomain, NUM_CONTROL_POINTS> bezpatch, float4 basisU, float4 basisV)
 {
@@ -54,11 +63,16 @@ float3 evaluateBezier(const OutputPatch<HullToDomain, NUM_CONTROL_POINTS> bezpat
 DomainToPixel main(PatchConstantData input, float2 domain : SV_DomainLocation, const OutputPatch<HullToDomain, NUM_CONTROL_POINTS> patch, uint patchID : SV_PrimitiveID)
 {
 	// Evaluate the basis functions at (u, v)
-	float4 basisU = bernsteinBasis(domain.x);
-	float4 basisV = bernsteinBasis(domain.y);
+	float4 BasisU = BernsteinBasis(domain.x);
+	float4 BasisV = BernsteinBasis(domain.y);
+	float4 dBasisU = DBernsteinBasis(domain.x);
+	float4 dBasisV = DBernsteinBasis(domain.y);
 
 	// Evaluate the surface position for this vertex
-	float3 localPos = evaluateBezier(patch, basisU, basisV);
+	float3 localPos = evaluateBezier(patch, BasisU, BasisV);
+	float3 tangent = evaluateBezier(patch, dBasisU, BasisV);
+	float3 biTangent = evaluateBezier(patch, BasisU, dBasisV);
+	float3 norm = normalize(cross(tangent, biTangent));
 
 	float4x4 transform = patchTransforms[patchID].transform;
 	float4 localPosTransformed = mul(float4(localPos, 1.0f), transform);
@@ -67,6 +81,8 @@ DomainToPixel main(PatchConstantData input, float2 domain : SV_DomainLocation, c
 	output.pos = mul(localPosTransformed, constPerObject.wMat);
 	output.pos = mul(output.pos, constPerObject.vpMat);
 	output.color = patchColors[patchID].color;
+	norm = mul(norm, transform);
+	output.norm = mul(norm, constPerObject.wMat);
 
 	return output;
 }

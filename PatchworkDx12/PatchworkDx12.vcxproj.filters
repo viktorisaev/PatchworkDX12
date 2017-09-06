@@ -128,10 +128,13 @@
     <FxCompile Include="Content\HullShader.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
-    <FxCompile Include="Content\PixelShader.hlsl">
+    <FxCompile Include="Content\VertexShader.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
-    <FxCompile Include="Content\VertexShader.hlsl">
+    <FxCompile Include="Content\PixelShaderLighting.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\PixelShaderWhite.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
   </ItemGroup>

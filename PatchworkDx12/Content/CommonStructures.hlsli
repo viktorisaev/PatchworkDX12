@@ -25,6 +25,7 @@ struct DomainToPixel
 {
 	float4 pos : SV_POSITION;
 	float3 color : COLOR;
+	float3 norm : NORMAL0;
 };
 
 // pixel

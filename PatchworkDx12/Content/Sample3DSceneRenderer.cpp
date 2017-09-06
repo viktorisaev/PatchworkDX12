@@ -77,30 +77,36 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		m_domainShader = fileData;
 	});
 
-	auto createPSTask = DX::ReadDataAsync(L"PixelShader.cso").then([this](std::vector<byte>& fileData) {
-		m_pixelShader = fileData;
+	auto createPSLightingTask = DX::ReadDataAsync(L"PixelShaderLighting.cso").then([this](std::vector<byte>& fileData) {
+		m_pixelLightingShader = fileData;
+	});
+	auto createPSWhiteTask = DX::ReadDataAsync(L"PixelShaderWhite.cso").then([this](std::vector<byte>& fileData) {
+		m_pixelWhiteShader = fileData;
 	});
 
 	// Create the pipeline state once the shaders are loaded.
-	auto createPipelineStateTask = (createPSTask && createHSTask && createDSTask && createVSTask).then([this]() {
+	auto createPipelineStateTask = (createPSLightingTask && createPSWhiteTask && createHSTask && createDSTask && createVSTask).then([this]() {
 
 		m_pipelineStateWireframe = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_WIREFRAME, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
 			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
-			CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size())
+			CD3DX12_SHADER_BYTECODE(&m_pixelWhiteShader[0], m_pixelWhiteShader.size())
 		);
 
-		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
+		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
 			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
-			CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size())
+			CD3DX12_SHADER_BYTECODE(&m_pixelLightingShader[0], m_pixelLightingShader.size())
 		);
 
 		// Shader data can be deleted once the pipeline state is created.
 		m_vertexShader.clear();
-		m_pixelShader.clear();
+		m_hullShader.clear();
+		m_domainShader.clear();
+		m_pixelLightingShader.clear();
+		m_pixelWhiteShader.clear();
 	});
 
 
