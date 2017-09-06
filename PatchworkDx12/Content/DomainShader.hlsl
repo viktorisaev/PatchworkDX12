@@ -72,7 +72,7 @@ DomainToPixel main(PatchConstantData input, float2 domain : SV_DomainLocation, c
 	float3 localPos = evaluateBezier(patch, BasisU, BasisV);
 	float3 tangent = evaluateBezier(patch, dBasisU, BasisV);
 	float3 biTangent = evaluateBezier(patch, BasisU, dBasisV);
-	float3 norm = normalize(cross(tangent, biTangent));
+	float3 norm = normalize(cross(biTangent, tangent));
 
 	float4x4 transform = patchTransforms[patchID].transform;
 	float4 localPosTransformed = mul(float4(localPos, 1.0f), transform);
@@ -82,7 +82,7 @@ DomainToPixel main(PatchConstantData input, float2 domain : SV_DomainLocation, c
 	output.pos = mul(output.pos, constPerObject.vpMat);
 	output.color = patchColors[patchID].color;
 	norm = mul(norm, transform);
-	output.norm = mul(norm, constPerObject.wMat);
+	output.norm = normalize(mul(norm, constPerObject.wMat));
 
 	return output;
 }

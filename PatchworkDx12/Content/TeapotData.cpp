@@ -3,7 +3,7 @@
 // https://www.sjbaker.org/wiki/index.php?title=The_History_of_The_Teapot
 // http://www.gamasutra.com/view/feature/131755/curved_surfaces_using_bzier_.php?print=1
 
-//#define SINGLE_16PATCH	// single 16-points patch
+#define SINGLE_16PATCH	// single 16-points patch
 
 
 std::vector<DirectX::XMFLOAT3> TeapotData::points
@@ -11,10 +11,10 @@ std::vector<DirectX::XMFLOAT3> TeapotData::points
 
 #if defined(SINGLE_16PATCH)
 	// single 16-points patch
-	{0.0f, -2.0f, 0.0f},
+	{0.0f, 2.0f, 0.0f},
 	{1.0f, 0.0f, 0.0f},
 	{2.0f, 0.0f, 0.0f},
-	{3.0f, 1.0f, 0.0f},
+	{3.0f, -1.0f, 0.0f},
 	{0.0f, 0.0f, 1.0f},
 	{1.0f, 0.0f, 1.0f},
 	{2.0f, 0.0f, 1.0f},
@@ -23,10 +23,10 @@ std::vector<DirectX::XMFLOAT3> TeapotData::points
 	{1.0f, 0.0f, 2.0f},
 	{2.0f, 0.0f, 2.0f},
 	{3.0f, 0.0f, 2.0f},
-	{0.0f, 1.0f, 3.0f},
+	{0.0f, -1.0f, 3.0f},
 	{1.0f, 0.0f, 3.0f},
 	{2.0f, 0.0f, 3.0f},
-	{3.0f, -2.0f, 3.0f},
+	{3.0f, 2.0f, 3.0f},
 
 #else
 	// 16 points

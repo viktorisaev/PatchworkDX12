@@ -94,7 +94,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			CD3DX12_SHADER_BYTECODE(&m_pixelWhiteShader[0], m_pixelWhiteShader.size())
 		);
 
-		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
+		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_BACK, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
 			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
