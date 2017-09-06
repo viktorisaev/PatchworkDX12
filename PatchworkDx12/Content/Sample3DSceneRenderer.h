@@ -58,6 +58,7 @@ namespace PatchworkDx12
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_TransformsAndColorsDescHeap;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_TransformsBuffer;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_ColorsBuffer;
+		Microsoft::WRL::ComPtr<ID3D12Resource> m_WireframeColorsBuffer;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_ControlPointsBuffer;
 		D3D12_VERTEX_BUFFER_VIEW m_ControlPointsBufferView;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_ControlPointsIndexBuffer;
@@ -69,7 +70,7 @@ namespace PatchworkDx12
 		float	m_radiansPerMouse;
 		bool	m_tracking;
 
-		bool m_IsWireframe;	// true=wireframe piplene state, false=solid pipline state
+		int m_FillMode;	// 0=solid, 1=wireframe, 2=solid+wireframe
 		int m_tessFactorEdge;	// tesselation factor - edge
 		int m_tessFactorInside;	// tesselation factor - inside
 
@@ -89,8 +90,7 @@ namespace PatchworkDx12
 	template<typename T>
 	void createSrv(ID3D12Device* device, ID3D12DescriptorHeap* descHeap, int offset, ID3D12Resource* resource, size_t numElements)
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		ZeroMemory(&srvDesc, sizeof(srvDesc));
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN; // https://msdn.microsoft.com/en-us/library/windows/desktop/dn859358(v=vs.85).aspx#shader_resource_view
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -99,8 +99,8 @@ namespace PatchworkDx12
 		srvDesc.Buffer.StructureByteStride = static_cast<UINT>(sizeof(T));
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-		static UINT descriptorSize{ device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
-		D3D12_CPU_DESCRIPTOR_HANDLE d{ descHeap->GetCPUDescriptorHandleForHeapStart() };
+		static UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3D12_CPU_DESCRIPTOR_HANDLE d = descHeap->GetCPUDescriptorHandleForHeapStart();
 		d.ptr += descriptorSize * offset;
 		device->CreateShaderResourceView(resource, &srvDesc, d);
 	}

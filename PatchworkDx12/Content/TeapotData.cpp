@@ -237,3 +237,35 @@ std::vector<DirectX::XMFLOAT3> TeapotData::patchesColors
 	{ static_cast<float>(std::rand()) / RAND_MAX, static_cast<float>(std::rand()) / RAND_MAX, static_cast<float>(std::rand()) / RAND_MAX },
 	{ static_cast<float>(std::rand()) / RAND_MAX, static_cast<float>(std::rand()) / RAND_MAX, static_cast<float>(std::rand()) / RAND_MAX }
 };
+
+std::vector<DirectX::XMFLOAT3> TeapotData::patchesColorsWireframe
+{
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) },
+	{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) }
+};

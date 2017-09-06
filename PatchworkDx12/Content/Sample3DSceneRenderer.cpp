@@ -28,7 +28,7 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	m_tracking(false),
 	m_mappedConstantBuffer(nullptr),
 	m_deviceResources(deviceResources),
-	m_IsWireframe(true),		// wireframe
+	m_FillMode(2),		// solid+wireframe
 	m_tessFactorEdge(4),		// default tess factor - edge
 	m_tessFactorInside(4)		// default tess factor - inside
 {
@@ -133,102 +133,15 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		m_TransformsBuffer = createStructuredBuffer(d3dDevice, TeapotData::patchesTransforms, L"transforms");
 		m_ColorsBuffer = createStructuredBuffer(d3dDevice, TeapotData::patchesColors, L"colors");
+		m_WireframeColorsBuffer = createStructuredBuffer(d3dDevice, TeapotData::patchesColorsWireframe, L"wireframecolors");
 
-
+		// descriptors
 		createSrv<TransformType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 0, m_TransformsBuffer.Get(), TeapotData::patchesTransforms.size());
 		createSrv<ColorType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 1, m_ColorsBuffer.Get(), TeapotData::patchesColors.size());
 
+		createSrv<TransformType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 2, m_TransformsBuffer.Get(), TeapotData::patchesTransforms.size());
+		createSrv<ColorType>(d3dDevice, m_TransformsAndColorsDescHeap.Get(), 3, m_WireframeColorsBuffer.Get(), TeapotData::patchesColorsWireframe.size());
 
-/*
-		// Cube vertices. Each vertex has a position and a color.
-		VertexPositionColor cubeVertices[] =
-		{
-			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
-			{ XMFLOAT3(-0.5f, -0.5f,  0.5f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-			{ XMFLOAT3(-0.5f,  0.5f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-			{ XMFLOAT3(-0.5f,  0.5f,  0.5f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
-			{ XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-			{ XMFLOAT3(0.5f, -0.5f,  0.5f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
-			{ XMFLOAT3(0.5f,  0.5f, -0.5f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
-			{ XMFLOAT3(0.5f,  0.5f,  0.5f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-		};
-
-		const UINT vertexBufferSize = sizeof(cubeVertices);
-
-		// Create the vertex buffer resource in the GPU's default heap and copy vertex data into it using the upload heap.
-		// The upload resource must not be released until after the GPU has finished using it.
-		Microsoft::WRL::ComPtr<ID3D12Resource> vertexBufferUpload;
-
-		CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
-		CD3DX12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &defaultHeapProperties , D3D12_HEAP_FLAG_NONE , &vertexBufferDesc , D3D12_RESOURCE_STATE_COPY_DEST , nullptr , IID_PPV_ARGS(&m_vertexBuffer)));
-
-		CD3DX12_HEAP_PROPERTIES uploadHeapProperties(D3D12_HEAP_TYPE_UPLOAD);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBufferUpload)));
-
-        NAME_D3D12_OBJECT(m_vertexBuffer);
-
-		// Upload the vertex buffer to the GPU.
-		{
-			D3D12_SUBRESOURCE_DATA vertexData = {};
-			vertexData.pData = reinterpret_cast<BYTE*>(cubeVertices);
-			vertexData.RowPitch = vertexBufferSize;
-			vertexData.SlicePitch = vertexData.RowPitch;
-
-			UpdateSubresources(m_commandList.Get(), m_vertexBuffer.Get(), vertexBufferUpload.Get(), 0, 0, 1, &vertexData);
-
-			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
-		}
-
-		// Load mesh indices. Each trio of indices represents a triangle to be rendered on the screen.
-		// For example: 0,2,1 means that the vertices with indexes 0, 2 and 1 from the vertex buffer compose the
-		// first triangle of this mesh.
-		unsigned short cubeIndices[] =
-		{
-			0, 2, 1, // -x
-			1, 2, 3,
-
-			4, 5, 6, // +x
-			5, 7, 6,
-
-			0, 1, 5, // -y
-			0, 5, 4,
-
-			2, 6, 7, // +y
-			2, 7, 3,
-
-			0, 4, 6, // -z
-			0, 6, 2,
-
-			1, 3, 7, // +z
-			1, 7, 5,
-		};
-
-		const UINT indexBufferSize = sizeof(cubeIndices);
-
-		// Create the index buffer resource in the GPU's default heap and copy index data into it using the upload heap.
-		// The upload resource must not be released until after the GPU has finished using it.
-		Microsoft::WRL::ComPtr<ID3D12Resource> indexBufferUpload;
-
-		CD3DX12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &defaultHeapProperties , D3D12_HEAP_FLAG_NONE , &indexBufferDesc , D3D12_RESOURCE_STATE_COPY_DEST , nullptr , IID_PPV_ARGS(&m_indexBuffer)));
-
-		DX::ThrowIfFailed(d3dDevice->CreateCommittedResource( &uploadHeapProperties , D3D12_HEAP_FLAG_NONE , &indexBufferDesc , D3D12_RESOURCE_STATE_GENERIC_READ , nullptr , IID_PPV_ARGS(&indexBufferUpload)));
-
-		NAME_D3D12_OBJECT(m_indexBuffer);
-
-		// Upload the index buffer to the GPU.
-		{
-			D3D12_SUBRESOURCE_DATA indexData = {};
-			indexData.pData = reinterpret_cast<BYTE*>(cubeIndices);
-			indexData.RowPitch = indexBufferSize;
-			indexData.SlicePitch = indexData.RowPitch;
-
-			UpdateSubresources(m_commandList.Get(), m_indexBuffer.Get(), indexBufferUpload.Get(), 0, 0, 1, &indexData);
-
-			m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
-		}
-		*/
 
 		// Create a descriptor heap for the constant buffers.
 		{
@@ -274,22 +187,6 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		// Close the command list and execute it to begin the vertex/index buffer copy into the GPU's default heap.
 		DX::ThrowIfFailed(m_commandList->Close());
 
-/*
-		ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-		m_deviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-		// Create vertex/index buffer views.
-		m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-		m_vertexBufferView.StrideInBytes = sizeof(VertexPositionColor);
-		m_vertexBufferView.SizeInBytes = sizeof(cubeVertices);
-
-		m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-		m_indexBufferView.SizeInBytes = sizeof(cubeIndices);
-		m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-
-		// Wait for the command list to finish executing; the vertex/index buffers need to be uploaded to the GPU before the upload resources go out of scope.
-		m_deviceResources->WaitForGpu();
-*/
 
 		// imgui
 		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
@@ -451,7 +348,7 @@ bool Sample3DSceneRenderer::Render()
 	DX::ThrowIfFailed(m_deviceResources->GetCommandAllocator()->Reset());
 
 	// The command list can be reset anytime after ExecuteCommandList() is called.
-	DX::ThrowIfFailed(m_commandList->Reset(m_deviceResources->GetCommandAllocator(), m_IsWireframe ? m_pipelineStateWireframe.Get() : m_pipelineStateSolid.Get() ));		// set pipeline state depends on "wireframe" mode
+	DX::ThrowIfFailed(m_commandList->Reset(m_deviceResources->GetCommandAllocator(), m_pipelineStateSolid.Get() ));		// set pipeline state depends on "wireframe" mode
 
 	PIXBeginEvent(m_commandList.Get(), 0, L"Draw the cube");
 	{
@@ -471,11 +368,10 @@ bool Sample3DSceneRenderer::Render()
 		int rootConstants[]{ m_tessFactorEdge, m_tessFactorInside };
 		m_commandList->SetGraphicsRoot32BitConstants(1, _countof(rootConstants), rootConstants, 0);
 
+		// descriptor heap
 		ID3D12DescriptorHeap* ppTransHeaps[] = { m_TransformsAndColorsDescHeap.Get() };
 		m_commandList->SetDescriptorHeaps(1, ppTransHeaps);
-		D3D12_GPU_DESCRIPTOR_HANDLE d = m_TransformsAndColorsDescHeap->GetGPUDescriptorHandleForHeapStart();
-		d.ptr += 0;
-		m_commandList->SetGraphicsRootDescriptorTable(2, d);
+
 
 		// Set the viewport and scissor rectangle.
 		D3D12_VIEWPORT viewport = m_deviceResources->GetScreenViewport();
@@ -498,8 +394,27 @@ bool Sample3DSceneRenderer::Render()
 		m_commandList->IASetVertexBuffers(0, static_cast<UINT>(myArray.size()), myArray.data());
 		m_commandList->IASetIndexBuffer(&m_ControlPointsIndexBufferView);
 		uint32_t numIndices = m_ControlPointsIndexBufferView.SizeInBytes / sizeof(uint32_t);
-		m_commandList->DrawIndexedInstanced(numIndices, 1, 0, 0, 0);
 
+		if (m_FillMode != 1)
+		{
+			// transforms and solid colors
+			D3D12_GPU_DESCRIPTOR_HANDLE d = m_TransformsAndColorsDescHeap->GetGPUDescriptorHandleForHeapStart();
+			m_commandList->SetGraphicsRootDescriptorTable(2, d);
+
+			// pipeline = solid (by creation of command list)
+			m_commandList->DrawIndexedInstanced(numIndices, 1, 0, 0, 0);
+		}
+
+		if (m_FillMode != 0)
+		{
+			// wireframe colors
+			D3D12_GPU_DESCRIPTOR_HANDLE wrfrmColorsDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_TransformsAndColorsDescHeap->GetGPUDescriptorHandleForHeapStart(), 2, m_deviceResources->GetD3DDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+			m_commandList->SetGraphicsRootDescriptorTable(2, wrfrmColorsDescriptorHandle);
+
+			// draw wireframe on top
+			m_commandList->SetPipelineState(m_pipelineStateWireframe.Get());
+			m_commandList->DrawIndexedInstanced(numIndices, 1, 0, 0, 0);
+		}
 
 		// ImGui
 		Size outputSize = m_deviceResources->GetOutputSize();
@@ -513,7 +428,7 @@ bool Sample3DSceneRenderer::Render()
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::Text("%i x %i", int(outputSize.Width), int(outputSize.Height));
 			ImGui::Text("Pitch, Roll=( %.3f , %.3f )", m_Pitch, m_Roll);
-			ImGui::Checkbox("Wireframe", &m_IsWireframe);
+			ImGui::Combo("Fill mode", &m_FillMode, "Solid\0Wireframe\0Solid+Wireframe\0\0" , 3);
 			ImGui::SliderInt("Tess Factor Edge", &m_tessFactorEdge, 1, 20);
 			ImGui::SliderInt("Tess Factor Inside", &m_tessFactorInside, 1, 20);
 			ImGui::End();
@@ -552,19 +467,10 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-	D3D12_RASTERIZER_DESC rasterizerDesc;
-	ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
+	D3D12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizerDesc.FillMode = fillMode;
 	rasterizerDesc.CullMode = cullMode;
-	rasterizerDesc.FrontCounterClockwise = true;// FALSE;
-	rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	rasterizerDesc.DepthClipEnable = TRUE;
-	rasterizerDesc.MultisampleEnable = FALSE;
-	rasterizerDesc.AntialiasedLineEnable = FALSE;
-	rasterizerDesc.ForcedSampleCount = 0;
-	rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+	rasterizerDesc.DepthBias = (fillMode == D3D12_FILL_MODE_WIREFRAME) ? -3000 : 0;	// the bias should be quite large due to depth buffer format: https://stackoverflow.com/questions/17199817/directx11-wireframe-z-fighting-help-or-why-d3d11-rasterizer-desc-depthbias-is-a
 
 	D3D12_BLEND_DESC blendDesc;
 	ZeroMemory(&blendDesc, sizeof(blendDesc));
@@ -578,11 +484,10 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 		D3D12_COLOR_WRITE_ENABLE_ALL
 	};
 
-	D3D12_DEPTH_STENCIL_DESC depthStencilDesc;
-	ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
-	depthStencilDesc.DepthEnable = TRUE;
+	D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+	depthStencilDesc.DepthEnable = true;
 	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	depthStencilDesc.DepthFunc = (fillMode == D3D12_FILL_MODE_WIREFRAME) ?  D3D12_COMPARISON_FUNC_LESS_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	depthStencilDesc.StencilEnable = FALSE;
 	depthStencilDesc.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
 	depthStencilDesc.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
@@ -590,8 +495,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> createPipelineState(ID3D12Device* _d
 	depthStencilDesc.FrontFace = defaultStencilOp;
 	depthStencilDesc.BackFace = defaultStencilOp;
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc;
-	ZeroMemory(&pipelineStateDesc, sizeof(pipelineStateDesc));
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 	pipelineStateDesc.InputLayout = { inputElementDescs.data(), static_cast<UINT>(inputElementDescs.size()) };
 	pipelineStateDesc.pRootSignature = _RootSignature.Get();
 	pipelineStateDesc.VS = _VertexShaderBlob;
@@ -675,7 +579,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> createTransformsAndColorsDescHeap(I
 {
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc;
 	ZeroMemory(&heapDesc, sizeof(heapDesc));
-	heapDesc.NumDescriptors = 2;
+	heapDesc.NumDescriptors = 4;	// (transform + colors) + (transform  + wireframecolors)
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.NodeMask = 0;

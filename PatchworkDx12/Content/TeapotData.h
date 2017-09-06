@@ -9,6 +9,7 @@ struct TeapotData
 	static std::vector<uint32_t> patches;
 	static std::vector<DirectX::XMFLOAT4X4> patchesTransforms;
 	static std::vector<DirectX::XMFLOAT3> patchesColors;
+	static std::vector<DirectX::XMFLOAT3> patchesColorsWireframe;
 
 private:
 	static DirectX::XMFLOAT4X4 getRotationMatrix(float x, float y, float z)
