@@ -91,7 +91,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			CD3DX12_SHADER_BYTECODE(&m_pixelShader[0], m_pixelShader.size())
 		);
 
-		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_NONE, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
+		m_pipelineStateSolid = createPipelineState(m_deviceResources->GetD3DDevice(), D3D12_FILL_MODE_SOLID, D3D12_CULL_MODE_FRONT, m_deviceResources->GetBackBufferFormat(), m_deviceResources->GetDepthBufferFormat(), m_rootSignature,
 			CD3DX12_SHADER_BYTECODE(m_vertexShader.data(), m_vertexShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_hullShader.data(), m_hullShader.size()),
 			CD3DX12_SHADER_BYTECODE(m_domainShader.data(), m_domainShader.size()),
@@ -238,7 +238,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 //	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
-	static const XMVECTORF32 eye = { 0.0f, 0.0f, -10.0f, 0.0f };
+	static const XMVECTORF32 eye = { 0.0f, 0.0f, -7.0f, 0.0f };
 	static const XMVECTORF32 at = { 0.0f, 0.0f, 0.0f, 0.0f };
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
 
