@@ -11,10 +11,10 @@ std::vector<DirectX::XMFLOAT3> TeapotData::points
 
 #if defined(SINGLE_16PATCH)
 	// single 16-points patch
-	{0.0f, 2.0f, 0.0f},
+	{0.0f, 1.0f, 0.0f},
 	{1.0f, 0.0f, 0.0f},
 	{2.0f, 0.0f, 0.0f},
-	{3.0f, -1.0f, 0.0f},
+	{3.0f, -0.5f, 0.0f},
 	{0.0f, 0.0f, 1.0f},
 	{1.0f, 0.0f, 1.0f},
 	{2.0f, 0.0f, 1.0f},
@@ -23,10 +23,10 @@ std::vector<DirectX::XMFLOAT3> TeapotData::points
 	{1.0f, 0.0f, 2.0f},
 	{2.0f, 0.0f, 2.0f},
 	{3.0f, 0.0f, 2.0f},
-	{0.0f, -1.0f, 3.0f},
+	{0.0f, -0.5f, 3.0f},
 	{1.0f, 0.0f, 3.0f},
 	{2.0f, 0.0f, 3.0f},
-	{3.0f, 2.0f, 3.0f},
+	{3.0f, 1.0f, 3.0f},
 
 #else
 	// 16 points

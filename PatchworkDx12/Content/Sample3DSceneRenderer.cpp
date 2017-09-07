@@ -244,9 +244,9 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 //	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
-	static const XMVECTORF32 eye = { 0.0f, 0.0f, -7.0f, 0.0f };
+	static const XMVECTORF32 eye = { 0.0f, -5.0f, -1.0f, 0.0f };
 	static const XMVECTORF32 at = { 0.0f, 0.0f, 0.0f, 0.0f };
-	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
+	static const XMVECTORF32 up = { 0.0f, 0.0f, 1.0f, 0.0f };
 
 	m_viewproj = XMMatrixLookAtLH(eye, at, up) * proj;
 
@@ -260,7 +260,6 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer, Point _PointerPos
 	{
 		if (!m_tracking)
 		{
-
 			m_Pitch = _PointerPosition.X * m_radiansPerMouse;
 			m_Roll = _PointerPosition.Y * m_radiansPerMouse;
 
@@ -280,8 +279,8 @@ void Sample3DSceneRenderer::Rotate(float _Pitch, float _Roll)
 
 //	XMMATRIX viewProjMatrixDX = XMLoadFloat4x4(&m_constantBufferData.view);
 
-	XMMATRIX modelMatrixRotationDX = XMMatrixRotationRollPitchYaw(_Roll, _Pitch, 0.0f);
-	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(0.0f, 0.0f, -1.5f);
+	XMMATRIX modelMatrixRotationDX = XMMatrixRotationRollPitchYaw(_Roll, 0.0f, _Pitch);
+	XMMATRIX modelMatrixTranslationDX = XMMatrixTranslation(-1.5f, 0.0f, -1.5f);
 	XMMATRIX modelMatrixDX = modelMatrixTranslationDX * modelMatrixRotationDX;
 	XMStoreFloat4x4(&m_constantBufferData.model, modelMatrixDX);
 }

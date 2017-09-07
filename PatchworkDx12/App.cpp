@@ -101,7 +101,7 @@ void App::Run()
 				decltype(Rect::Height) halfHeight = bounds.Height / 2;
 				Point mouseCenterWindowPos = Point(mouseAbsPoint.X - bounds.Left - halfWidth, mouseAbsPoint.Y - bounds.Top - halfHeight);
 				Point mouseCenterNormWindowPos = Point(mouseCenterWindowPos.X / halfWidth, - mouseCenterWindowPos.Y / halfHeight);
-				m_main->Update(mouseCenterNormWindowPos);
+				m_windowClosed = m_main->Update(mouseCenterNormWindowPos);
 			}
 			PIXEndEvent(commandQueue);
 

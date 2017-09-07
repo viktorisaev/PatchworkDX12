@@ -12,7 +12,7 @@ namespace PatchworkDx12
 	public:
 		PatchworkDx12Main();
 		void CreateRenderers(const std::shared_ptr<DX::DeviceResources>& deviceResources);
-		void Update(Windows::Foundation::Point _PointerPosition);	// _PointerPosition x=(-1..1), y=(-1..1)
+		bool Update(Windows::Foundation::Point _PointerPosition);	// _PointerPosition x=(-1..1), y=(-1..1), return true if close requested
 		bool Render();
 
 		void OnWindowSizeChanged();
@@ -29,5 +29,8 @@ namespace PatchworkDx12
 
 		// Rendering loop timer.
 		DX::StepTimer m_timer;
+
+		// gamepad
+		std::unique_ptr<DirectX::GamePad> m_gamePad;
 	};
 }

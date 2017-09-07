@@ -8,11 +8,11 @@ float4 main(DomainToPixel input) : SV_TARGET
 float3 norm = normalize(input.norm);
 
 	// lighting
-	float3 light = normalize(float3(-1.0f, -1.0f, 1.0f));
+	float3 light = normalize(float3(-3.0f, 7.0f, -3.0f));
 	float lighting = 0.0f + dot(light, norm);
 
 	float3 refl = reflect(light, norm);
-	float3 viewer = normalize(float3(0.0f, 0.0f, -7.0f));
+	float3 viewer = normalize(float3(0.0f, -7.0f, -2.0f));
 
 	float3 reflex = pow(max(dot(refl, viewer), 0.0f), 18.0f);
 

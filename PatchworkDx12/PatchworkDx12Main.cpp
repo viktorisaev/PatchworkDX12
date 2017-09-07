@@ -18,6 +18,9 @@ PatchworkDx12Main::PatchworkDx12Main()
 	m_timer.SetFixedTimeStep(true);
 	m_timer.SetTargetElapsedSeconds(1.0 / 60);
 	*/
+
+	m_gamePad = std::make_unique<DirectX::GamePad>();
+
 }
 
 // Creates and initializes the renderers.
@@ -30,14 +33,44 @@ void PatchworkDx12Main::CreateRenderers(const std::shared_ptr<DX::DeviceResource
 }
 
 // Updates the application state once per frame.
-void PatchworkDx12Main::Update(Point _PointerPosition)
+bool PatchworkDx12Main::Update(Point _PointerPosition)
 {
+	bool isCloseRequested = false;
 	// Update scene objects.
 	m_timer.Tick([&]()
 	{
 		// TODO: Replace this with your app's content update functions.
+
+		auto state = m_gamePad->GetState(0);
+
+		if (state.IsConnected())
+		{
+			// TODO: Read controller 0 here
+			if (state.IsViewPressed())
+			{
+				isCloseRequested = true; // Win32 desktop API for exiting the application
+			}
+
+			// vibra
+			float left = (state.IsAPressed()) ? 1.f : 0;
+			float right = (state.IsBPressed()) ? 1.f : 0;
+			m_gamePad->SetVibration(0, left, right);
+
+
+			m_gamePad->SetVibration(0, state.triggers.left, state.triggers.right);
+
+			float posx = state.thumbSticks.leftX;
+			float posy = state.thumbSticks.leftY;
+
+			_PointerPosition.X = posx/2;
+			_PointerPosition.Y = posy/2;
+
+		}
+
 		m_sceneRenderer->Update(m_timer, _PointerPosition);
 	});
+
+	return isCloseRequested;
 }
 
 // Renders the current frame according to the current application state.
@@ -74,12 +107,15 @@ void PatchworkDx12Main::OnSuspending()
 
 	// If your application uses video memory allocations that are easy to re-create,
 	// consider releasing that memory to make it available to other applications.
+
+	m_gamePad->Suspend();
 }
 
 // Notifes the app that it is no longer suspended.
 void PatchworkDx12Main::OnResuming()
 {
 	// TODO: Replace this with your app's resuming logic.
+	m_gamePad->Resume();
 }
 
 // Notifies renderers that device resources need to be released.
